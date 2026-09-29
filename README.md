@@ -1,94 +1,98 @@
-# هلبسها مع إيه؟
+# Wear It With
 
-مساعد لتقييم شراء قطعة ملابس من خلال تنسيقها مع الدولاب الحالي.
+**Before you buy a new piece, see where it fits in your closet.**
 
-**الحالة بتاريخ 28 سبتمبر 2026:** أول معاينة حقيقية ناجحة بـClothes V4 (جاكيت `outer` على صورة من Pexels). سجل الاستهلاك في الحساب: المعاينة الناجحة خصمت **2 وحدة**، ومحاولة فشلت عند رفع الملف (قبل إنشاء المهمة) خصمت **0**. الرصيد بعدها 1,038 (40 تجربة مجانية + 1,000 من كود المسابقة − 2). لسه ماتجربش: `upper_body` و`lower_body` والطبقات المتتابعة.
+Wear It With is a purchase-decision assistant for clothes. Add a few pieces you already own and the item you're considering. The app shows the outfits it makes with your closet, explains every pairing, and lets you preview the new piece — or the whole look — on yourself with the **YouCam Clothes API**.
 
-## تشغيل التطبيق (Wear It With)
+Built for the [YouCam API Skin AI & eCommerce VTO Hackathon](https://youcam-api-skin-ai-ecommerce.devpost.com/).
 
-الواجهة بالإنجليزية بالكامل، والنصوص في `frontend/src/i18n/en.ts` عشان نضيف عربي/RTL بعدين.
+## Features
 
-```powershell
-# Terminal 1 — backend (يحفظ المفتاح ويكلم YouCam)
-.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+- **Closet** — add, edit and delete pieces with a photo, type, main color and occasions. A clearly labeled sample closet is included for first-time visitors.
+- **Pieces you're considering** — product photo, price and optional budget; compare up to two options.
+- **Looks** — up to three complete outfits built from your closet, each with plain-language reasons. The app also shows:
+  - how many combinations the piece unlocks;
+  - price per combination and budget fit;
+  - which closet pieces it doesn't pair with, and why.
+- **Try-on (YouCam Clothes V4)** — preview the new piece on a photo of yourself, or the **full look** layered bottom → top → outerwear.
+- **Compare** — two options side by side under the same rules. The app summarizes the differences and does not tell you to buy either one.
+
+### Declared outfit rules (no invented scores)
+
+1. A complete look is a top with a bottom, or a dress. Outerwear layers over a complete look; shoes are added when they fit the rules.
+2. Every piece shares at least one occasion (casual, work, evening, active).
+3. At most one statement color per look. Neutrals go with anything, and repeating the same color counts as one.
+
+The rules live in [`frontend/src/lib/rules.ts`](frontend/src/lib/rules.ts) and are covered by unit tests.
+
+## How YouCam is used
+
+The backend calls the YouCam Clothes V4 API ([docs](https://docs.perfectcorp.com/reference/ai_clothes/v4.0)):
+
+1. `POST /s2s/v2.0/file` registers each image. The image is then uploaded to the returned signed URL.
+2. `POST /s2s/v2.0/task/cloth-v4` creates a task with `src_file_id`, `ref_file_id` and `garment_category` (`upper_body`, `lower_body`, `outer` or `full_body`).
+3. `GET /s2s/v2.0/task/cloth-v4/{task_id}` is polled until the task reaches `success` or `error`.
+
+V4 handles one garment category per request. The full look is therefore a chain: each result becomes the source photo for the next layer. Previews are labeled as AI approximations; they don't guarantee size or fit.
+
+## Privacy and safety
+
+- The **YouCam API key stays on the server** (environment variable) and is never sent to the browser.
+- The **closet is stored only in your browser** (IndexedDB). The person photo stays in memory and is not saved by the app.
+- Images are re-encoded before upload, which strips EXIF metadata such as location.
+- **Explicit consent** is required before any photo is sent to YouCam. YouCam documents keeping files for up to 30 days ([file retention](https://docs.perfectcorp.com/develop/file_retention_period)).
+- **Spend guards:**
+  - one running task per session;
+  - per-session and daily limits;
+  - no automatic resubmission after an ambiguous network failure.
+
+## Tech stack
+
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS, React Router, idb-keyval, Vitest. All UI copy lives in [`frontend/src/i18n/en.ts`](frontend/src/i18n/en.ts), and the layout uses logical CSS properties so Arabic/RTL can be added.
+- **Backend:** Python, Django, Django REST Framework, Pillow, SQLite (stores task references only — no photos).
+
+## Run locally
+
+Requirements: Python 3.12+, Node.js 20+, and a YouCam API key ([API console](https://yce.perfectcorp.com/api-console/en/api-keys/)).
+
+```bash
+# 1. Configuration — copy the example and fill in YOUCAM_API_KEY and DJANGO_SECRET_KEY
+cp .env.local.example .env.local
+
+# 2. Backend (http://127.0.0.1:8000)
+python -m venv .venv
+.venv/Scripts/python -m pip install -r backend/requirements.txt   # macOS/Linux: .venv/bin/python
 cd backend
-..\.venv\Scripts\python.exe manage.py migrate
-..\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000
+../.venv/Scripts/python manage.py migrate
+../.venv/Scripts/python manage.py runserver 127.0.0.1:8000
 
-# Terminal 2 — frontend
+# 3. Frontend (http://localhost:5173) — in a second terminal
 cd frontend
 npm install
-npm run dev   # http://localhost:5173
+npm run dev
 ```
 
-من غير `YOUCAM_API_KEY` كل حاجة شغالة ما عدا التجربة الافتراضية، والصفحة بتقول ده صراحة. الاختبارات: `npx vitest run` في `frontend`، و`manage.py test tryon` في `backend` (كلها offline بـmocks؛ مش دليل على استدعاء حقيقي).
+Without an API key, everything works except try-on, and the try-on page says so.
 
-- الدولاب وصور القطع في IndexedDB في المتصفح فقط. صورة الشخص في الذاكرة فقط، والخادم مش بيخزنها.
-- كل معاينة = ضغطة مقصودة + موافقة صريحة؛ حد 5 للجلسة و20 يوميًا (قابلين للتعديل في `.env.local`)، ومهمة واحدة شغالة في المرة، ومفيش إعادة إنشاء تلقائية.
-- التجربة تدعم `top → upper_body`، `outerwear → outer`، `dress → full_body`. البنطلون والأحذية مستبعدين لأن التوثيق يطلب صور ملبوسة للجزء السفلي.
-- قطع الدولاب التجريبي رسومات SVG من عملنا ومعلّمة "Sample"؛ مش صالحة للتجربة الافتراضية — محتاجة صورة منتج حقيقية.
+## Tests
 
-## أول خطوة عملية
-
-1. افتحي [API Keys](https://yce.perfectcorp.com/api-console/en/api-keys/) من حساب YouCam، وتأكدي من وجود مفتاح صالح أو أنشئيه. احتفظي بيه محليًا فقط؛ متبعتيهوش في الشات.
-2. انضمي للهاكاثون على Devpost لو لسه. بحسب [الموارد الرسمية](https://youcam-api-skin-ai-ecommerce.devpost.com/resources)، استردي الكود المرسل بالإيميل من `Account → Redeem Code` لتحصلي على 1,000 وحدة. إنشاء حساب YouCam وحده مش إثبات وصول الكود أو إضافة الرصيد. راجعي الرصيد وتاريخ الانتهاء الظاهرين بالحساب.
-3. افتحي `.env.local` في محرر النصوص، وضعي المفتاح بعد `YOUCAM_API_KEY=`. جهّزنا نسخة محلية فارغة في مساحة العمل؛ لو بتبدئي من نسخة جديدة للمستودع، انسخي `.env.local.example` إلى `.env.local` أولًا. الملف المحلي مستبعد من Git.
-4. أنشئي مجلد `private-inputs`، وضعي فيه `person.png` و`garment.png`، أو عدّلي مساراتهما في `.env.local`. مجلد الصور مستبعد من Git.
-5. استخدمي صورة شخص بالغ واحد بموافقته، مواجهة للكاميرا، بإضاءة واضحة ووجه وكتفين ظاهرين والمنطقة المطلوبة غير محجوبة. اختبري بصورة جاكيت واحد من الأمام وخلفية بسيطة، واختاري `outer`. للتيشيرت/القميص اختاري `upper_body`. تجنبي صورة تجميع عدة قطع، والبدء بطبقات معقدة أو بنطلون منفصل.
-
-الصور: JPEG أو PNG؛ أقل من 10,000,000 بايت؛ أقصر ضلع 384px على الأقل، وأطول ضلع بين 512 و4096px. مقاس مثل 768×1024 مناسب للبدء. الاختبار يصحح اتجاه الصورة وينزع EXIF ويحضر PNG في الذاكرة؛ الصورة الأصلية تفضل عندك. ممكن PNG الناتجة تكون أكبر من الأصل، وساعتها لازم تصغري الصورة.
-
-متستخدميش صور أشخاص أو صور متاجر من غير حق استخدامها وإرسالها للمعالجة. لحد دلوقتي مفيش ترخيص مؤكد لإعادة توزيع صور أمثلة YouCam؛ الأفضل صور مملوكة ليكي ومصرح باستخدامها.
-
-## تشغيل الاختبار
-
-من فولدر المشروع، لو Python شغّال عندك:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-probe.txt
-.\.venv\Scripts\python.exe scripts/youcam_probe.py
+```bash
+cd frontend && npx vitest run                    # outfit rules
+cd backend && ../.venv/Scripts/python manage.py test tryon   # API endpoints, with YouCam mocked
 ```
 
-الأمر الأخير **فحص محلي فقط**: لا يرسل صورًا، ولا يصرف وحدات، ولا يتحقق من صلاحية المفتاح عند YouCam. نجاحه معناه أن الإعدادات والصور جاهزة للمحاولة.
+The backend tests mock the provider; they verify our own logic (consent, limits, validation, no silent retries), not YouCam's output.
 
-بعد التأكد من الرصيد، وحقوق الصور، وموافقة الشخص على إرسالها لـYouCam، نفّذي:
+## Development timeline
 
-```powershell
-.\.venv\Scripts\python.exe scripts/youcam_probe.py --run --consent --max-units 2
-```
+- **September 28, 2026 (before the submission period):** research, API probe, and the initial prototype — closet, outfit rules, single-piece and layered try-on. Recorded in the first commit.
+- **From September 29, 2026 (submission period):** see the commit history.
 
-ده يرفع صورتين، وينشئ **طلب Clothes V4 واحدًا**، ويتابع الحالة كل 10 ثواني. التكلفة الموثقة في [إعلان V4 الرسمي](https://www.perfectcorp.com/business/blog/ai-clothes/ai-clothes-try-on-api-v4-outerwear) وحدتان للصورة؛ `--max-units` حارس محلي مقابل الرقم الموثق، وليس حد فوترة تفرضه YouCam. راجعي السعر الحالي في الحساب قبل التشغيل. مفيش شراء رصيد تلقائي أو إعادة إنشاء تلقائية لطلبات التوليد.
+## Credits
 
-لو نجح، النتيجة الفعلية هتتحفظ في `artifacts/youcam-smoke/<task-id>/result.png` ومعاها سجل صغير بدون المفتاح أو روابط الصور المؤقتة. احتفظنا بالناتج محليًا فقط للمراجعة المقصودة للاختبار؛ امسحيه بعد انتهاء التقييم. لا يوجد حذف تلقائي لنسخ المزود من هذا السكربت. قيّمي شكل القطعة والهوية والوضعية يدويًا، وسجلي الرصيد قبل وبعد لمعرفة الخصم الفعلي. المعاينة لا تضمن المقاس أو الملاءمة الفعلية.
+- Virtual try-on by the [YouCam API](https://yce.perfectcorp.com/) (Perfect Corp.).
+- Sample closet illustrations are original SVG artwork made for this project.
 
-لو الاتصال انقطع بعد إنشاء الطلب، احتفظي بالـtask ID وراجعي حالته في حساب المزود قبل التشغيل مرة تانية لتجنب خصم مكرر. السكربت يوقف التشغيل عند الاستجابة غير المتوقعة بدل اختراع نتيجة.
+## License
 
-في بيئة Codex الحالية تم العثور على Python مدمج فيه Pillow، وتم استخدامه للفحوص المحلية بدون تثبيت خدمات أو شراء أي شيء. الأوامر أعلاه لإعداد بيئتك المعتادة؛ لا يلزم تشغيلها لو هنكمل الاختبار من Codex بعد وضع الملفات محليًا.
-
-## الخصوصية والتوثيق
-
-زر المعاينة لاحقًا لازم يوضح إرسال صورة الشخص وصورة القطعة لـPerfect Corp/YouCam. [دليل الاحتفاظ](https://docs.perfectcorp.com/develop/file_retention_period) يذكر 30 يومًا للصور المرفوعة والناتجة، ورابط تحميل مدته ساعتان. توجد استثناءات احتفاظ أوسع في [سياسة خصوصية API](https://www.perfectcorp.com/perfectbeauty/youcam/privacy-policy-api)، ولذلك مفيش وعد بالحذف الفوري عند المزود.
-
-الخطة: صور الدولاب محليًا في المتصفح أولًا؛ صورة الشخص في الذاكرة مؤقتًا، بدون تخزين دائم في التطبيق. اختبار اليوم يحتفظ بالناتج محليًا للمراجعة فقط. أي استضافة مستقبلية محتاجة موافقة منفصلة وإعداد حماية وحدود استخدام مناسبة.
-
-## النطاق والبنية المقترحة
-
-- React + TypeScript + Vite + Tailwind للواجهة، ببنية تدعم RTL وملفات ترجمة منفصلة. لغة العرض لسه مش محسومة.
-- Django/DRF كخادم صغير يحتفظ بالمفتاح ويعزل استدعاءات YouCam. صور الدولاب وبياناتها في IndexedDB في النسخة الأولى؛ لا حسابات مستخدمين ولا قاعدة إنتاج أو Redis/Celery. يمكن استعمال SQLite لاحقًا لو ظهرت حاجة فعلية للتخزين الخادمي.
-- دولاب 6–12 قطعة بتصنيفات يدوية، قطعة شراء واحدة وسعرها وميزانية اختيارية، وحتى 3 تنسيقات مبررة بقواعد معلنة، ثم معاينة قطعة واحدة.
-- لوحة التنسيق مستقلة عن صورة المعاينة؛ التطبيق لا يدّعي أنه جرّب كل القطع معًا. المقارنة والمفضلة بعد نجاح الرحلة الأساسية.
-
-## التحقق المحلي
-
-```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
-```
-
-دي اختبارات محلية بحقن استجابات اختبار: منع أي اتصال في الفحص المحلي، فصل المفتاح عن رفع التخزين، اشتراط الموافقة، حارس الوحدات، عدم إعادة التوليد بعد فشل ملتبس، فشل المهمة، رفض البيانات غير السليمة، وإزالة EXIF. مش نتيجة تكامل حقيقي، ومفيش صور معاينة تجريبية بتتعرض على أنها مخرجات API.
-
-## تاريخ بدء العمل
-
-القواعد تسمح بالمشاريع الموجودة بشرط تطوير جوهري خلال فترة التسليم وشرح التغييرات. البحث وسكربت الفحص الحالي إعداد بتاريخ **28 سبتمبر 2026، قبل الفترة**؛ لا يُنسب لفترة المسابقة. بناء المنتج وتجربته المتكاملة هو العمل الجوهري المخطط أثناء الفترة، ويجب توثيقه عند التسليم.
-
-بداية التسليم: 29 سبتمبر 2026 الساعة 19:00 القاهرة. نهايته: 2 نوفمبر 2026 الساعة 18:45 القاهرة. المصدر الأساسي [القواعد](https://youcam-api-skin-ai-ecommerce.devpost.com/rules)؛ التفاصيل والملاحظات في تقرير المراجعة داخل `reports`.
+[MIT](LICENSE)
