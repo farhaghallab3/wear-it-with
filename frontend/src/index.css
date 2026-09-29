@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #fbf8f3;
+  --color-ivory: #f4eee6;
+  --color-sand: #e6dccf;
+  --color-line: #d9cdbf;
+  --color-muted: #6b6057;
+  --color-ink: #1e1a18;
+  --color-plum: #5b2141;
+  --color-plum-deep: #401630;
+  --color-plum-soft: #efe2e8;
+  --color-blush: #e9c9c2;
+  --color-sage: #2f5a44;
+  --color-sage-soft: #e1ece4;
+  --color-rust: #9a3b26;
+  --color-rust-soft: #f6e3dc;
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100dvh;
+    background: var(--color-paper);
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-plum);
+    outline-offset: 3px;
+  }
+  dialog::backdrop {
+    background: rgb(30 26 24 / 0.45);
+    backdrop-filter: blur(2px);
+  }
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold tracking-wide transition
+    disabled:cursor-not-allowed disabled:opacity-45;
+}
+@utility btn-primary { @apply btn bg-plum text-paper hover:bg-plum-deep; }
+@utility btn-dark { @apply btn bg-ink text-paper hover:bg-plum-deep; }
+@utility btn-ghost { @apply btn border border-ink/20 text-ink hover:border-ink hover:bg-ink/5; }
+@utility btn-link { @apply inline-flex items-center gap-1 text-sm font-semibold text-plum underline-offset-4 hover:underline; }
+@utility eyebrow { @apply text-xs font-semibold uppercase tracking-[0.2em] text-plum; }
+@utility field-label { @apply mb-2 block text-sm font-semibold; }
+@utility input {
+  @apply w-full rounded-xl border border-line bg-paper px-4 py-3 text-base outline-none transition
+    placeholder:text-muted/70 focus:border-plum focus:ring-2 focus:ring-plum/20;
+}
+@utility chip {
+  @apply inline-flex cursor-pointer items-center gap-2 rounded-full border border-line bg-paper px-3.5 py-2 text-sm transition
+    hover:border-ink/50 has-[:checked]:border-ink has-[:checked]:bg-ink has-[:checked]:font-semibold has-[:checked]:text-paper
+    has-[:checked]:before:content-['✓'] has-[:checked]:before:font-bold
+    has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-plum;
+}
+@utility card { @apply rounded-3xl bg-ivory; }
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(100deg, var(--color-ivory) 30%, var(--color-sand) 50%, var(--color-ivory) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer { animation: none; }
+  * { scroll-behavior: auto !important; transition: none !important; }
+}

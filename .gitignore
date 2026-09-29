@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+!.env.local.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+private-inputs/
+artifacts/
+media/
+db.sqlite3
+node_modules/
+dist/
